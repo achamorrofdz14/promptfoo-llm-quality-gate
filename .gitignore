@@ -1,3 +1,7 @@
+# macOS system files
+.DS_Store
+**/.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -221,4 +225,10 @@ results/*.json
 
 # Promptfoo cache
 .promptfoo/
+
+# Promptfoo generated redteam files
+*_generated.yaml
+config/promptfoo/evaluations/redteam.yaml
+
+# Secrets
 gcp-sa.json
