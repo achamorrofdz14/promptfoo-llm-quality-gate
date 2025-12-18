@@ -1,0 +1,56 @@
+# RAG Retriever Comparison
+# Compare ChromaDB vs Qdrant - latency and quality
+
+description: "RAG retriever comparison - ChromaDB vs Qdrant"
+
+providers:
+  - id: file://../../../src/financial_rag/providers/retriever_only.py
+    label: "ChromaDB"
+    config:
+      vector_store: chromadb
+      top_k: 5
+      return_format: text
+
+  - id: file://../../../src/financial_rag/providers/retriever_only.py
+    label: "Qdrant"
+    config:
+      vector_store: qdrant
+      top_k: 5
+      return_format: text
+
+prompts:
+  - "{{query}}"
+
+tests:
+  # Test 1: Apple - latency + content
+  - vars:
+      query: "Apple iPhone revenue Q3 2023"
+      ground_truth: "iPhone net sales for Q3 2023 was $39,669 million"
+    assert:
+      - type: latency
+        threshold: 3700
+      - type: icontains
+        value: "iPhone"
+
+  # Test 2: Microsoft - strict latency + content
+  - vars:
+      query: "Microsoft total revenue quarterly report"
+      ground_truth: "Microsoft total revenue for Q3 2023"
+    assert:
+      - type: latency
+        threshold: 650
+      - type: icontains
+        value: "MSFT"
+
+  # Test 3: NVIDIA - latency + content
+  - vars:
+      query: "NVIDIA data center revenue Q3"
+      ground_truth: "NVIDIA data center revenue was $14,514 million"
+    assert:
+      - type: latency
+        threshold: 1500
+      - type: icontains
+        value: "Data Center"
+
+evaluateOptions:
+  maxConcurrency: 1

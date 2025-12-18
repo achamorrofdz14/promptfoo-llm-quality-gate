@@ -1,0 +1,101 @@
+# Model Comparison Evaluation
+# Compare different LLM providers on cost, latency, and quality
+
+description: "Model comparison - cost, latency, and quality analysis"
+
+providers:
+  # OpenAI
+  - id: openai:gpt-4o
+    label: "GPT-4o"
+    config:
+      temperature: 0.1
+
+  - id: openai:gpt-4o-mini
+    label: "GPT-4o-mini"
+    config:
+      temperature: 0.1
+
+  # Anthropic
+  - id: anthropic:messages:claude-sonnet-4-20250514
+    label: "Claude Sonnet 4"
+    config:
+      temperature: 0.1
+
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    label: "Claude Haiku 4.5"
+    config:
+      temperature: 0.1
+
+  # Google Vertex AI
+  - id: vertex:gemini-2.5-flash
+    label: "Gemini 2.5 Flash"
+    config:
+      temperature: 0.1
+      projectId: adrians-testing
+      region: europe-west1
+
+  - id: vertex:gemini-2.5-flash-lite
+    label: "Gemini 2.5 Flash Lite"
+    config:
+      temperature: 0.1
+      projectId: adrians-testing
+      region: europe-west1
+
+prompts:
+  - file://../../../prompts/rag/generation_prompt.txt
+
+tests:
+  - vars:
+      query: "What was Apple's total net sales for the quarter ended July 1, 2023?"
+      context: |
+        [Source 1: 2023 Q3 AAPL.pdf (Table)]
+        CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS (Unaudited)
+        Three Months Ended July 1, 2023
+        Total net sales: $81,797 million
+      ground_truth: "Apple's total net sales for the quarter ended July 1, 2023 were $81,797 million. (SOURCE: 2023 Q3 AAPL.pdf)"
+    assert:
+      - type: contains
+        value: "81,797"
+      - type: icontains
+        value: "AAPL"
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.9
+      - type: latency
+        threshold: 5000
+
+  - vars:
+      query: "What was NVIDIA's revenue for the quarter ended July 30, 2023?"
+      context: |
+        [Source 1: 2023 Q3 NVDA.pdf (Table)]
+        CONDENSED CONSOLIDATED STATEMENTS OF INCOME
+        Three Months Ended July 30, 2023
+        Revenue: $13,507 million
+      ground_truth: "NVIDIA's revenue for the quarter ended July 30, 2023 was $13,507 million. (SOURCE: 2023 Q3 NVDA.pdf)"
+    assert:
+      - type: contains
+        value: "13,507"
+      - type: icontains
+        value: "NVDA"
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.9
+
+  - vars:
+      query: "What were Microsoft's total revenues for Q3 2023?"
+      context: |
+        [Source 1: 2023 Q3 MSFT.pdf (Table)]
+        Three Months Ended June 30, 2023
+        Total revenues: $56,189 million
+      ground_truth: "Microsoft's total revenues for Q3 2023 (three months ended June 30, 2023) were $56,189 million. (SOURCE: 2023 Q3 MSFT.pdf)"
+    assert:
+      - type: contains
+        value: "56,189"
+      - type: icontains
+        value: "MSFT"
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.9
+
+evaluateOptions:
+  maxConcurrency: 3

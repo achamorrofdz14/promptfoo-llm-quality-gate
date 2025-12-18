@@ -1,0 +1,51 @@
+# Application Configuration for Financial RAG Demo
+# This file contains business/application settings that can be version controlled
+# For secrets and infrastructure settings, use .env file
+
+# Document Processing Settings
+documents:
+  # List of PDF documents to process (subset for demo)
+  # Available: 2022 Q3 AAPL, 2022 Q3 AMZN, 2022 Q3 INTC, 2022 Q3 MSFT, 2022 Q3 NVDA
+  #            2023 Q1-Q3 for all tickers
+  selected:
+    - "2023 Q3 AAPL.pdf"
+    - "2023 Q3 MSFT.pdf"
+    - "2023 Q3 NVDA.pdf"
+    - "2023 Q3 INTC.pdf"
+    - "2022 Q3 AAPL.pdf"
+
+# Test Data Filtering
+test_data:
+  # Question types to include in evaluation
+  # Options: "Single-Doc Single-Chunk RAG", "Multi-Doc RAG", "Single-Doc Multi-Chunk RAG"
+  question_types:
+    - "Single-Doc Single-Chunk RAG"
+
+  # Source chunk types to include
+  # Options: "Table", "Text"
+  chunk_types:
+    - "Table"
+    - "Text"
+
+# RAG Pipeline Settings
+rag:
+  top_k: 5
+  chunk_size: 1000
+  chunk_overlap: 200
+
+# Document Processing Settings
+processing:
+  # Tokenizer model for Docling HybridChunker
+  # Used for accurate token counting during chunking
+  chunker_tokenizer: "sentence-transformers/all-MiniLM-L6-v2"
+
+# LLM Generation Settings
+llm:
+  temperature: 0.1
+  max_tokens: 1024
+
+# Evaluation Settings
+evaluation:
+  # Maximum number of test cases to run (for cost control during development)
+  # Set to null or remove to run all matching test cases
+  max_test_cases: 50

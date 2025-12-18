@@ -1,0 +1,61 @@
+# RAG Context Quality Evaluation
+# Evaluate RAG response quality and accuracy
+
+description: "RAG context quality - factuality and accuracy"
+
+providers:
+  - id: file://../../../src/financial_rag/providers/chromadb_rag.py
+    label: "ChromaDB RAG"
+    config:
+      llm_provider: openai
+      model: gpt-4o-mini
+      top_k: 5
+
+prompts:
+  - "{{query}}"
+
+tests:
+  - vars:
+      query: "What was the total revenue generated from Apple's iPhone sales for the latest quarter?"
+      ground_truth: "The total revenue generated from Apple's iPhone sales for the latest quarter ended July 1, 2023, was $39,669 million. (SOURCE: 2023 Q3 AAPL.pdf)"
+    assert:
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.7
+      - type: icontains
+        value: "39,669"
+      - type: llm-rubric
+        value: |
+          Does the response correctly state Apple's iPhone revenue?
+          Score 1 if correct figure mentioned, 0 otherwise.
+
+  - vars:
+      query: "What was the revenue from Microsoft's cloud services, including Azure, in the latest quarter?"
+      ground_truth: "The revenue from Microsoft's cloud services, including Azure, in the latest quarter was $22,308 million. (SOURCE: 2023 Q3 MSFT.pdf)"
+    assert:
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.7
+      - type: icontains
+        value: "Azure"
+      - type: llm-rubric
+        value: |
+          The response should discuss Microsoft's cloud/Azure revenue.
+          Score 1 if cloud revenue figure is mentioned, 0 if not.
+
+  - vars:
+      query: "What was Intel's gross margin as reported in their latest 10-Q?"
+      ground_truth: "Intel's gross margin for the quarterly period ended September 30, 2023, was $6,018 million. (SOURCE: 2023 Q3 INTC.pdf)"
+    assert:
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.6
+      - type: icontains
+        value: "INTC"
+      - type: llm-rubric
+        value: |
+          The response should address Intel's gross margin.
+          Score 1 if gross margin figures are mentioned, 0 otherwise.
+
+evaluateOptions:
+  maxConcurrency: 2

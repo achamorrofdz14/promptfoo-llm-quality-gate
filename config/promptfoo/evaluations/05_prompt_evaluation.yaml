@@ -1,0 +1,170 @@
+# Prompt Template Evaluation
+# Compare different prompt templates - tests designed to expose prompt differences
+
+description: "Prompt template comparison - which prompt works best?"
+
+providers:
+  - id: file://../../../src/financial_rag/providers/generation_only.py
+    label: "GPT-4o-mini"
+    config:
+      llm_provider: openai
+      model: gpt-4o-mini
+
+prompts:
+  # Basic prompt - minimal instructions
+  - label: "basic"
+    raw: |
+      Answer the question based on the context.
+
+      Context: {{context}}
+
+      Question: {{query}}
+
+  # Analyst prompt - emphasizes precision and citations
+  - label: "analyst"
+    raw: |
+      You are a financial analyst specializing in 10-Q filings.
+
+      Rules:
+      - Extract EXACT numerical data
+      - Always cite source as (SOURCE: filename.pdf)
+      - Be concise but complete
+
+      Context: {{context}}
+
+      Question: {{query}}
+
+  # Chain-of-thought - step by step reasoning
+  - label: "cot"
+    raw: |
+      Think step by step to answer this financial question.
+
+      Context: {{context}}
+
+      Question: {{query}}
+
+      Step 1: Identify relevant data
+      Step 2: Extract key figures
+      Step 3: Formulate answer
+
+tests:
+  # Test 1: Baseline - CSV line 757
+  - vars:
+      query: "What was Apple's gross margin for Q3 2023?"
+      context: |
+        [Source: 2023 Q3 AAPL.pdf]
+        Three Months Ended July 1, 2023
+        Net sales: $81,797 million
+        Gross margin: $36,413 million
+      ground_truth: "The gross margin for Apple in the latest 10-Q report for the three months ended July 1, 2023, was $36,413 million. (SOURCE: CSV line 757)"
+    assert:
+      - type: icontains
+        value: "36,413"
+
+  # Test 2: FIXED net sales question - CSV line 763
+  - vars:
+      query: "What caused the decrease in Apple's net sales in Q2 2023?"
+      context: |
+        [Source: 2023 Q2 AAPL.pdf]
+        The Company's total net sales decreased 3% or $2.4 billion during the second quarter of 2023. The decrease was due primarily to lower net sales of Mac, partially offset by higher net sales of Services.
+      ground_truth: "The decrease in net sales was due primarily to lower net sales of Mac, partially offset by higher net sales of Services. (SOURCE: CSV line 763)"
+    assert:
+      - type: icontains
+        value: "Mac"
+      - type: icontains
+        value: "Services"
+
+  # Test 3: STRICT CITATION - analyst prompt says "(SOURCE: filename.pdf)"
+  # CSV line 1106: NVIDIA gaming $2,856M
+  - vars:
+      query: "What was NVIDIA's gaming revenue in Q3 2023?"
+      context: |
+        [Source: 2023 Q3 NVDA.pdf]
+        Gaming segment revenue: $2,856 million
+        Professional Visualization: $416 million
+      ground_truth: "NVIDIA's gaming segment revenue was $2,856 million. (SOURCE: CSV line 1106)"
+    assert:
+      - type: icontains
+        value: "2,856"
+      - type: javascript
+        value: output.includes('(SOURCE:') && output.includes('.pdf)')
+        weight: 3
+
+  # Test 4: VERBOSITY TEST - CoT should write more, show steps
+  # CSV line 1109: Data Center $14,514M, 80% of $18,120M
+  - vars:
+      query: "Calculate the ratio of NVIDIA Data Center to Gaming revenue. Show your reasoning."
+      context: |
+        [Source: 2023 Q3 NVDA.pdf]
+        Data Center revenue: $14,514 million
+        Gaming revenue: $2,856 million
+      ground_truth: "Data Center ($14,514M) is approximately 5.08x larger than Gaming ($2,856M). 14514/2856 = 5.08. (SOURCE: CSV lines 1106, 1109)"
+    assert:
+      - type: javascript
+        value: output.includes('5.0') || output.includes('5.1')
+      - type: javascript
+        value: output.length > 100
+        weight: 2
+
+  # Test 5: CONCISENESS - penalize long responses
+  # CSV line 810: Microsoft gross margin $40,215M
+  - vars:
+      query: "Microsoft Q3 2023 gross margin? Brief answer."
+      context: |
+        [Source: 2023 Q3 MSFT.pdf]
+        Gross margin: $40,215 million
+      ground_truth: "The reported gross margin for Microsoft was $40,215 million. (SOURCE: CSV line 810)"
+    assert:
+      - type: icontains
+        value: "40,215"
+      - type: javascript
+        value: output.length < 120
+        weight: 3
+
+  # Test 6: STEP-BY-STEP - CoT prompt has steps built-in
+  # CSV lines 441,487: Microsoft Cloud 24% growth to $31.8B
+  - vars:
+      query: "Microsoft Cloud was $25.7B in 2022 and $31.8B in 2023. What's the growth rate? Explain step by step."
+      context: |
+        [Source: 2023 Q3 MSFT.pdf]
+        Microsoft Cloud revenue increased by 24% to $31.8 billion.
+        Previous year: $25.7 billion.
+      ground_truth: "Microsoft Cloud revenue increased by 24% to $31.8 billion. (SOURCE: CSV lines 441, 487)"
+    assert:
+      - type: javascript
+        value: output.includes('24') || output.includes('23')
+      - type: javascript
+        value: (output.toLowerCase().match(/step|first|then|next|finally|calculate/g) || []).length >= 1
+        weight: 3
+
+  # Test 7: MULTI-PART extraction - CSV line 792
+  - vars:
+      query: "Apple Q3 2023: How many shares repurchased and at what cost?"
+      context: |
+        [Source: 2023 Q3 AAPL.pdf]
+        During Q3 2023, Apple repurchased 102,673,000 shares for $18.0 billion.
+      ground_truth: "Apple repurchased 102,673,000 shares of its common stock for $18.0 billion. (SOURCE: CSV line 792)"
+    assert:
+      - type: javascript
+        value: output.includes('102')
+      - type: javascript
+        value: output.includes('18')
+
+  # Test 8: PRECISION - analyst emphasizes exact data
+  # CSV line 1191: Intel total revenue $14.158B
+  - vars:
+      query: "What was Intel's exact total net revenue in Q3 2023?"
+      context: |
+        [Source: 2023 Q3 INTC.pdf]
+        Total net revenue: $14.158 billion
+        Data Center: $3.8 billion
+      ground_truth: "The total net revenue for Intel in Q3 2023 was $14.158 billion. (SOURCE: CSV line 1191)"
+    assert:
+      - type: javascript
+        value: output.includes('14.158') || output.includes('14.2')
+      - type: javascript
+        value: output.includes('billion') || output.includes('B')
+        weight: 2
+
+evaluateOptions:
+  maxConcurrency: 3
