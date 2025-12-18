@@ -5,13 +5,12 @@ This provider implements full RAG pipeline:
 2. Generates response using configured LLM
 """
 
-from langchain_anthropic import ChatAnthropic
-from langchain_google_vertexai import ChatVertexAI
-from langchain_openai import ChatOpenAI
-
-from financial_rag.config import get_settings
+from financial_rag import get_logger
 from financial_rag.providers.base_provider import BaseProvider, create_provider_response
+from financial_rag.providers.llm_factory import create_llm
 from financial_rag.vectorstores.chroma_store import ChromaStore
+
+logger = get_logger("providers.chromadb_rag")
 
 
 class ChromaDBRAGProvider(BaseProvider):
@@ -45,42 +44,14 @@ class ChromaDBRAGProvider(BaseProvider):
         if self._llm is not None:
             return self._llm
 
-        settings = get_settings()
-        provider = self._config.get("llm_provider", "openai")
-
-        if provider == "openai":
-            model = self._config.get("model", "gpt-4o-mini")
-            self._llm = ChatOpenAI(
-                model=model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                api_key=settings.openai_api_key,
-            )
-            self._model_name = model
-
-        elif provider == "anthropic":
-            model = self._config.get("model", "claude-haiku-4-5-20251001")
-            self._llm = ChatAnthropic(
-                model=model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                api_key=settings.anthropic_api_key,
-            )
-            self._model_name = model
-
-        elif provider == "google":
-            model = self._config.get("model", "gemini-2.5-flash")
-            self._llm = ChatVertexAI(
-                model=model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                project=settings.google_cloud_project,
-                location=settings.google_cloud_location,
-            )
-            self._model_name = model
-
-        else:
-            raise ValueError(f"Unknown LLM provider: {provider}")
+        llm_instance = create_llm(
+            provider=self._config.get("llm_provider", "openai"),
+            model=self._config.get("model"),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        self._llm = llm_instance.llm
+        self._model_name = llm_instance.model_name
 
         return self._llm
 
@@ -96,6 +67,7 @@ class ChromaDBRAGProvider(BaseProvider):
         """
         # Get the query from context vars or use prompt directly
         query = context.get("vars", {}).get("query", prompt)
+        logger.info("Processing query: %s", query[:100] + "..." if len(query) > 100 else query)
 
         # Build filter from context if source document is specified
         filter_metadata = None
@@ -103,6 +75,7 @@ class ChromaDBRAGProvider(BaseProvider):
         if source_doc and not source_doc.startswith("*"):
             # Exact document filter
             filter_metadata = {"source_document": source_doc}
+            logger.debug("Applying filter: %s", filter_metadata)
 
         # Retrieve relevant documents
         store = self._get_store()
@@ -110,6 +83,11 @@ class ChromaDBRAGProvider(BaseProvider):
             query=query,
             k=self.top_k,
             filter_metadata=filter_metadata,
+        )
+        logger.info(
+            "Retrieved %d documents in %.2fms",
+            len(retrieval_result.documents),
+            retrieval_result.latency_ms,
         )
 
         # Format context from retrieved documents
@@ -119,6 +97,7 @@ class ChromaDBRAGProvider(BaseProvider):
                 [doc.to_dict() for doc in retrieval_result.documents]
             )
         else:
+            logger.warning("No documents found for query - returning empty context message")
             formatted_context = "[No relevant documents found in the database for this query]"
 
         # Load and format prompt template

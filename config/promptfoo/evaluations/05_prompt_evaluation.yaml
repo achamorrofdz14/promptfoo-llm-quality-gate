@@ -1,14 +1,23 @@
 # Prompt Template Evaluation
-# Compare different prompt templates - tests designed to expose prompt differences
+# Compare different prompt templates across multiple models
+# Tests prompt portability - do prompts work equally well across providers?
 
 description: "Prompt template comparison - which prompt works best?"
 
 providers:
+  # Test with OpenAI
   - id: file://../../../src/financial_rag/providers/generation_only.py
     label: "GPT-4o-mini"
     config:
       llm_provider: openai
       model: gpt-4o-mini
+
+  # Test with Anthropic - validates prompt portability across providers
+  - id: file://../../../src/financial_rag/providers/generation_only.py
+    label: "Claude Haiku"
+    config:
+      llm_provider: anthropic
+      model: claude-haiku-4-5-20251001
 
 prompts:
   # Basic prompt - minimal instructions

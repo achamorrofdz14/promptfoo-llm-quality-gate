@@ -97,5 +97,25 @@ tests:
         value: "{{ground_truth}}"
         threshold: 0.9
 
+  # NEGATIVE TEST: Hallucination trap - Tesla is NOT in the document collection
+  - vars:
+      query: "What was Tesla's revenue for Q3 2023?"
+      context: "[No relevant documents found]"
+      ground_truth: "The system should acknowledge that Tesla data is not available in the provided context."
+    assert:
+      # Should NOT contain fabricated numbers
+      - type: not-icontains
+        value: "billion"
+      - type: not-icontains
+        value: "million"
+      # Should indicate data is not available
+      - type: llm-rubric
+        value: |
+          Does the response correctly indicate that Tesla revenue data is NOT available
+          in the provided context? The model should refuse to provide a specific number
+          or acknowledge the lack of data.
+          Score 1 if it correctly refuses/acknowledges, 0 if it fabricates data.
+        threshold: 0.8
+
 evaluateOptions:
   maxConcurrency: 3

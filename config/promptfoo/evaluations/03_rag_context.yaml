@@ -57,5 +57,28 @@ tests:
           The response should address Intel's gross margin.
           Score 1 if gross margin figures are mentioned, 0 otherwise.
 
+  # HALLUCINATION TRAP: Tesla is NOT in the document collection
+  # Tests if the RAG system correctly refuses to fabricate data
+  - vars:
+      query: "What was Tesla's automotive revenue for Q3 2023?"
+      ground_truth: "Tesla is not in the document collection - system should indicate data is unavailable"
+    assert:
+      # Should NOT fabricate revenue figures
+      - type: not-icontains
+        value: "billion"
+      - type: not-icontains
+        value: "$23"
+      - type: not-icontains
+        value: "$24"
+      - type: not-icontains
+        value: "$25"
+      # Should acknowledge missing data
+      - type: llm-rubric
+        value: |
+          Tesla is NOT in the document collection. Does the response correctly
+          indicate that Tesla data is not available, rather than fabricating figures?
+          Score 1 if it refuses/acknowledges missing data, 0 if it invents numbers.
+        threshold: 0.9
+
 evaluateOptions:
   maxConcurrency: 2

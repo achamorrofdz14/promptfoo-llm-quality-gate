@@ -5,12 +5,11 @@ Useful for testing prompt engineering and red team scenarios
 where you want to test the model's behavior without retrieval interference.
 """
 
-from langchain_anthropic import ChatAnthropic
-from langchain_google_vertexai import ChatVertexAI
-from langchain_openai import ChatOpenAI
-
-from financial_rag.config import get_settings
+from financial_rag import get_logger
 from financial_rag.providers.base_provider import BaseProvider, create_provider_response
+from financial_rag.providers.llm_factory import create_llm
+
+logger = get_logger("providers.model_only")
 
 
 class ModelOnlyProvider(BaseProvider):
@@ -43,42 +42,14 @@ class ModelOnlyProvider(BaseProvider):
         if self._llm is not None:
             return self._llm
 
-        settings = get_settings()
-        provider = self._config.get("llm_provider", "openai")
-
-        if provider == "openai":
-            model = self._config.get("model", "gpt-4o-mini")
-            self._llm = ChatOpenAI(
-                model=model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                api_key=settings.openai_api_key,
-            )
-            self._model_name = model
-
-        elif provider == "anthropic":
-            model = self._config.get("model", "claude-haiku-4-5-20251001")
-            self._llm = ChatAnthropic(
-                model=model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                api_key=settings.anthropic_api_key,
-            )
-            self._model_name = model
-
-        elif provider == "google":
-            model = self._config.get("model", "gemini-2.5-flash")
-            self._llm = ChatVertexAI(
-                model=model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                project=settings.google_cloud_project,
-                location=settings.google_cloud_location,
-            )
-            self._model_name = model
-
-        else:
-            raise ValueError(f"Unknown LLM provider: {provider}")
+        llm_instance = create_llm(
+            provider=self._config.get("llm_provider", "openai"),
+            model=self._config.get("model"),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        self._llm = llm_instance.llm
+        self._model_name = llm_instance.model_name
 
         return self._llm
 

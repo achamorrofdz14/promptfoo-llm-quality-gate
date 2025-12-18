@@ -1,12 +1,13 @@
 """Base provider functionality for promptfoo custom providers."""
 
-import json
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
+from financial_rag import get_logger
 from financial_rag.config import calculate_cost, get_app_config, get_settings
+
+logger = get_logger("providers.base")
 
 
 class BaseProvider(ABC):
@@ -66,16 +67,21 @@ class BaseProvider(ABC):
             self._config.update(options["config"])
 
         start_time = time.time()
+        logger.debug("Processing request with prompt length: %d", len(prompt))
 
         try:
             result = self.generate(prompt, context)
-            result["latency_ms"] = (time.time() - start_time) * 1000
+            latency_ms = (time.time() - start_time) * 1000
+            result["latency_ms"] = latency_ms
+            logger.info("Request completed in %.2fms", latency_ms)
             return result
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            logger.error("Request failed after %.2fms: %s", latency_ms, str(e))
             return {
                 "output": None,
                 "error": str(e),
-                "latency_ms": (time.time() - start_time) * 1000,
+                "latency_ms": latency_ms,
             }
 
     def _format_context_for_prompt(self, documents: list[dict]) -> str:
