@@ -1,0 +1,73 @@
+# Base provider configurations for promptfoo evaluations
+# These can be referenced in evaluation configs
+
+# Custom RAG providers (ChromaDB)
+chromadb_rag_openai: &chromadb_rag_openai
+  id: file://src/financial_rag/providers/chromadb_rag.py
+  config:
+    llm_provider: openai
+    model: gpt-4o-mini
+    top_k: 5
+
+chromadb_rag_anthropic: &chromadb_rag_anthropic
+  id: file://src/financial_rag/providers/chromadb_rag.py
+  config:
+    llm_provider: anthropic
+    model: claude-3-5-haiku-20241022
+    top_k: 5
+
+chromadb_rag_google: &chromadb_rag_google
+  id: file://src/financial_rag/providers/chromadb_rag.py
+  config:
+    llm_provider: google
+    model: gemini-1.5-flash
+    top_k: 5
+
+# Custom RAG providers (Qdrant)
+qdrant_rag_openai: &qdrant_rag_openai
+  id: file://src/financial_rag/providers/qdrant_rag.py
+  config:
+    llm_provider: openai
+    model: gpt-4o-mini
+    top_k: 5
+
+qdrant_rag_anthropic: &qdrant_rag_anthropic
+  id: file://src/financial_rag/providers/qdrant_rag.py
+  config:
+    llm_provider: anthropic
+    model: claude-3-5-haiku-20241022
+    top_k: 5
+
+# Retriever-only providers
+retriever_chromadb: &retriever_chromadb
+  id: file://src/financial_rag/providers/retriever_only.py
+  config:
+    vector_store: chromadb
+    top_k: 5
+    return_format: json
+
+retriever_qdrant: &retriever_qdrant
+  id: file://src/financial_rag/providers/retriever_only.py
+  config:
+    vector_store: qdrant
+    top_k: 5
+    return_format: json
+
+# Generation-only providers
+generation_openai: &generation_openai
+  id: file://src/financial_rag/providers/generation_only.py
+  config:
+    llm_provider: openai
+    model: gpt-4o-mini
+
+generation_anthropic: &generation_anthropic
+  id: file://src/financial_rag/providers/generation_only.py
+  config:
+    llm_provider: anthropic
+    model: claude-3-5-haiku-20241022
+
+generation_google: &generation_google
+  id: file://src/financial_rag/providers/generation_only.py
+  config:
+    llm_provider: google
+    model: gemini-1.5-flash

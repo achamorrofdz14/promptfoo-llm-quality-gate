@@ -1,0 +1,278 @@
+# Vector Database Comparison - Comprehensive Retrieval Evaluation
+# Compare ChromaDB vs Qdrant on retrieval quality, latency, and robustness
+# Evaluates: Simple lookups, semantic similarity, edge cases
+
+description: "Vector DB comparison - ChromaDB vs Qdrant retrieval quality"
+
+providers:
+  # ChromaDB - Embedded/local vector store
+  - id: file://../../../src/financial_rag/providers/retriever_only.py
+    label: "ChromaDB"
+    config:
+      vector_store: chromadb
+      top_k: 5
+      return_format: text
+
+  # Qdrant - Client-server vector store
+  - id: file://../../../src/financial_rag/providers/retriever_only.py
+    label: "Qdrant"
+    config:
+      vector_store: qdrant
+      top_k: 5
+      return_format: text
+
+prompts:
+  - "{{query}}"
+
+# Default assertions applied to ALL test cases
+defaultTest:
+  assert:
+    # Latency threshold: 1 second max for retrieval operations
+    - type: latency
+      threshold: 1000
+      weight: 1
+
+tests:
+  # =============================================================================
+  # CATEGORY 1: SIMPLE LOOKUPS (4 cases)
+  # Direct questions that should retrieve exact document matches
+  # =============================================================================
+
+  # Test 1.1: Apple total net sales - Standard financial query
+  - description: "Simple lookup - Apple total net sales Q3 2023"
+    vars:
+      query: "Apple total net sales Q3 2023"
+    assert:
+      - type: icontains
+        value: "Apple"
+        weight: 2
+      - type: icontains
+        value: "net sales"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Does the retrieved content contain Apple's total net sales figures
+          from Q3 2023 (quarter ended July 1, 2023)?
+
+          Score 1.0 if exact Q3 2023 net sales data is present.
+          Score 0.5 if Apple financial data present but wrong quarter.
+          Score 0 if no relevant Apple financial data.
+        threshold: 0.8
+        weight: 3
+
+  # Test 1.2: NVIDIA revenue October 2023 - Date-based retrieval
+  - description: "Simple lookup - NVIDIA revenue October 2023"
+    vars:
+      query: "NVIDIA revenue October 2023"
+    assert:
+      - type: icontains
+        value: "NVIDIA"
+        weight: 2
+      - type: icontains
+        value: "revenue"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Does the retrieved content contain NVIDIA revenue data from
+          the fiscal quarter ending October 2023?
+
+          Score 1.0 if Q3 FY2024 (Oct 2023) revenue data present.
+          Score 0.5 if NVIDIA revenue data but different period.
+          Score 0 if no relevant NVIDIA data.
+        threshold: 0.8
+        weight: 3
+
+  # Test 1.3: Microsoft gross margin Q1 FY2024 - Fiscal year terminology
+  - description: "Simple lookup - Microsoft gross margin fiscal Q1 2024"
+    vars:
+      query: "Microsoft gross margin Q1 FY2024"
+    assert:
+      - type: icontains
+        value: "Microsoft"
+        weight: 2
+      - type: javascript
+        value: output.toLowerCase().includes('gross') || output.toLowerCase().includes('margin')
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Does the retrieved content contain Microsoft's gross margin data
+          from Q1 FY2024 (quarter ended September 30, 2023)?
+
+          Score 1.0 if gross margin figures are present.
+          Score 0.5 if Microsoft financial data but no margin info.
+          Score 0 if no relevant Microsoft data.
+        threshold: 0.8
+        weight: 3
+
+  # Test 1.4: Intel net revenue Q3 2023 - Standard financial query
+  - description: "Simple lookup - Intel net revenue Q3 2023"
+    vars:
+      query: "Intel net revenue Q3 2023"
+    assert:
+      - type: icontains
+        value: "Intel"
+        weight: 2
+      - type: icontains
+        value: "revenue"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Does the retrieved content contain Intel's net revenue data
+          from Q3 2023 (quarter ended September 30, 2023)?
+
+          Score 1.0 if Q3 2023 revenue data present.
+          Score 0.5 if Intel revenue data but different period.
+          Score 0 if no relevant Intel data.
+        threshold: 0.8
+        weight: 3
+
+  # =============================================================================
+  # CATEGORY 2: SEMANTIC SIMILARITY (3 cases)
+  # Paraphrased queries that test embedding quality - same intent, different words
+  # =============================================================================
+
+  # Test 2.1: Casual language → formal financial
+  - description: "Semantic - iPhone sales (casual language)"
+    vars:
+      query: "How much money did Apple make from iPhones?"
+    assert:
+      - type: icontains
+        value: "iPhone"
+        weight: 3
+      - type: llm-rubric
+        value: |
+          The query uses casual language ("make money from iPhones").
+          Does the retrieved content contain iPhone revenue/sales data
+          from Apple's financial reports?
+
+          This tests if the vector DB can match casual phrasing
+          to formal financial terminology.
+
+          Score 1.0 if iPhone revenue figures are present.
+          Score 0.5 if Apple data present but not iPhone-specific.
+          Score 0 if no relevant data.
+        threshold: 0.8
+        weight: 3
+
+  # Test 2.2: Conceptual match - GPU/AI → Data Center
+  - description: "Semantic - NVIDIA GPU for AI (conceptual match)"
+    vars:
+      query: "NVIDIA's GPU sales for AI workloads"
+    assert:
+      - type: javascript
+        value: output.toLowerCase().includes('data center') || output.toLowerCase().includes('nvidia')
+        weight: 2
+      - type: llm-rubric
+        value: |
+          The query mentions "GPU sales for AI workloads" which maps to
+          NVIDIA's Data Center segment in financial reports.
+
+          Does the retrieved content contain NVIDIA Data Center revenue
+          or AI/GPU-related business metrics?
+
+          Score 1.0 if Data Center segment data is present.
+          Score 0.5 if NVIDIA data present but not Data Center specific.
+          Score 0 if no relevant data.
+        threshold: 0.8
+        weight: 3
+
+  # Test 2.3: Semantic mapping - cloud → Intelligent Cloud
+  - description: "Semantic - Microsoft cloud earnings"
+    vars:
+      query: "Cloud computing earnings at Microsoft"
+    assert:
+      - type: icontains
+        value: "Microsoft"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          The query asks about "cloud computing earnings" which should
+          map to Microsoft's "Intelligent Cloud" segment in reports.
+
+          Does the retrieved content contain Microsoft Intelligent Cloud
+          or Azure-related revenue data?
+
+          Score 1.0 if Intelligent Cloud/Azure data present.
+          Score 0.5 if Microsoft data but not cloud-specific.
+          Score 0 if no relevant data.
+        threshold: 0.8
+        weight: 3
+
+  # =============================================================================
+  # CATEGORY 3: EDGE CASES (3 cases)
+  # Challenging queries that test retrieval robustness
+  # =============================================================================
+
+  # Test 3.1: Short query - minimal context
+  - description: "Edge case - Short query (AAPL iPhone)"
+    vars:
+      query: "AAPL iPhone"
+    assert:
+      - type: icontains
+        value: "Apple"
+        weight: 2
+      - type: icontains
+        value: "iPhone"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          This is a very short query with just ticker symbol and product.
+          Tests if the vector DB can handle minimal query context.
+
+          Does the retrieved content contain Apple iPhone data?
+
+          Score 1.0 if iPhone-related Apple financial data present.
+          Score 0.5 if Apple data but not iPhone-specific.
+          Score 0 if no Apple data or wrong company.
+        threshold: 0.7
+        weight: 3
+
+  # Test 3.2: Out-of-scope company - should return low relevance
+  - description: "Edge case - Tesla (not in documents)"
+    vars:
+      query: "Tesla quarterly earnings Q3 2023"
+    assert:
+      # Should NOT find Tesla-specific data
+      - type: not-icontains
+        value: "Tesla"
+        weight: 3
+      - type: llm-rubric
+        value: |
+          Tesla is NOT in the document collection.
+          The retriever should return documents, but they should NOT
+          be relevant to Tesla specifically.
+
+          Score 1.0 if retrieved docs do NOT claim to be about Tesla.
+          Score 0.5 if unclear relevance.
+          Score 0 if incorrectly returns Tesla-labeled content.
+        threshold: 0.8
+        weight: 3
+
+  # Test 3.3: Multi-document need - comparative query
+  - description: "Edge case - Apple 2022 vs 2023 (multi-doc)"
+    vars:
+      query: "Apple revenue comparison 2022 vs 2023"
+    assert:
+      - type: icontains
+        value: "Apple"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          This query requires retrieving from BOTH 2022 Q3 AAPL
+          and 2023 Q3 AAPL documents for a proper comparison.
+
+          Does the retrieved content include data from multiple
+          time periods (2022 AND 2023)?
+
+          Score 1.0 if both 2022 and 2023 Apple data present.
+          Score 0.5 if only one year's data present.
+          Score 0 if no Apple data.
+        threshold: 0.7
+        weight: 3
+
+evaluateOptions:
+  maxConcurrency: 1  # Sequential for fair timing comparison
+  cache: false  # Disable cache to measure real latency
+
+# Output configuration
+outputPath: ./results/02_rag_retriever_{{timestamp}}.json

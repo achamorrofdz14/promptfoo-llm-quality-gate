@@ -1,0 +1,61 @@
+[project]
+name = "promptfoo-llm-quality-gate"
+version = "0.1.0"
+description = "Financial RAG evaluation demo using promptfoo - quarterly earnings reports Q&A"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # LLM Providers
+    "openai>=1.40.0",
+    "anthropic>=0.34.0",
+    "google-cloud-aiplatform>=1.60.0",
+
+    # PDF Processing
+    "docling>=2.15.0",
+    "langchain-docling>=0.1.0",
+
+    # Vector Databases
+    "chromadb>=0.5.0",
+    "qdrant-client>=1.10.0",
+
+    # LangChain
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-anthropic>=0.2.0",
+    "langchain-google-vertexai>=2.0.0",
+    "langchain-chroma>=0.1.0",
+    "langchain-qdrant>=0.2.0",
+
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "rich>=13.7.0",
+    "tiktoken>=0.7.0",
+    "pandas>=2.0.0",
+
+    # Development & Notebooks
+    "ipykernel>=7.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/financial_rag"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

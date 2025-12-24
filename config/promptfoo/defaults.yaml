@@ -1,0 +1,8 @@
+# Default settings for promptfoo evaluations
+
+defaultTest:
+  options:
+    transformVars: "{ ...vars }"
+
+# Output settings
+outputPath: results/{{description}}_{{timestamp}}.json
