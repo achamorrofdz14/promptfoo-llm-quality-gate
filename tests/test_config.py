@@ -1,7 +1,5 @@
 """Tests for configuration module."""
 
-import pytest
-
 from financial_rag.config import calculate_cost, get_app_config, get_settings
 
 

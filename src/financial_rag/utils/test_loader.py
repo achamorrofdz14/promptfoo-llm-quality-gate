@@ -45,7 +45,10 @@ class TestCase:
                 },
                 {
                     "type": "llm-rubric",
-                    "value": "Response accurately addresses the question using data from the specified source documents.",
+                    "value": (
+                        "Response accurately addresses the question "
+                        "using data from the specified source documents."
+                    ),
                 },
             ],
         }

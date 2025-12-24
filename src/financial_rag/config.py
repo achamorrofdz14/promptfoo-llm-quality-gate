@@ -47,9 +47,7 @@ class Settings(BaseSettings):
     )
 
     # Project paths
-    project_root: Path = Field(
-        default_factory=lambda: Path(__file__).parent.parent.parent
-    )
+    project_root: Path = Field(default_factory=lambda: Path(__file__).parent.parent.parent)
 
     # OpenAI (from .env)
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
@@ -209,9 +207,7 @@ MODEL_PRICING = {
 }
 
 
-def calculate_cost(
-    model: str, prompt_tokens: int, completion_tokens: int = 0
-) -> float:
+def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int = 0) -> float:
     """Calculate cost for a model call.
 
     Args:
