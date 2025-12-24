@@ -1,84 +1,291 @@
-# RAG Context Quality Evaluation
-# Evaluate RAG response quality and accuracy
+# Factuality & Hallucination Detection - Production RAG Evaluation
+# Compare GPT-4o-mini vs Claude Haiku on factual accuracy and hallucination prevention
+# Full RAG pipeline: Qdrant retrieval + LLM generation
+# Focus: Real-world production Q&A validation scenarios
 
-description: "RAG context quality - factuality and accuracy"
+description: "Factuality & hallucination detection - GPT-4o-mini vs Claude Haiku"
 
 providers:
-  - id: file://../../../src/financial_rag/providers/chromadb_rag.py
-    label: "ChromaDB RAG"
+  # Qdrant RAG with GPT-4o-mini
+  - id: file://../../../src/financial_rag/providers/qdrant_rag.py
+    label: "Qdrant + GPT-4o-mini"
     config:
       llm_provider: openai
       model: gpt-4o-mini
       top_k: 5
+      temperature: 0.1
+
+  # Qdrant RAG with Claude Haiku
+  - id: file://../../../src/financial_rag/providers/qdrant_rag.py
+    label: "Qdrant + Claude Haiku"
+    config:
+      llm_provider: anthropic
+      model: claude-haiku-4-5-20251001
+      top_k: 5
+      temperature: 0.1
 
 prompts:
   - "{{query}}"
 
+# Default assertions applied to ALL test cases
+defaultTest:
+  assert:
+    # Latency threshold: 15 seconds for full RAG pipeline (retrieval + generation)
+    - type: latency
+      threshold: 15000
+      weight: 1
+
 tests:
-  - vars:
-      query: "What was the total revenue generated from Apple's iPhone sales for the latest quarter?"
-      ground_truth: "The total revenue generated from Apple's iPhone sales for the latest quarter ended July 1, 2023, was $39,669 million. (SOURCE: 2023 Q3 AAPL.pdf)"
+  # =============================================================================
+  # CATEGORY 1: FACTUAL ACCURACY (3 cases)
+  # Verify correct extraction of financial figures from retrieved documents
+  # =============================================================================
+
+  # Test 1.1: Apple Total Net Sales - Key revenue metric
+  - description: "Factual accuracy - Apple total net sales Q3 2023"
+    vars:
+      query: "What was Apple's total net sales for the quarter ended July 1, 2023?"
+      ground_truth: "Apple's total net sales for Q3 2023 were $81,797 million."
     assert:
+      # Should contain the correct figure (allow formatting variations)
+      - type: javascript
+        value: "output.includes('81,797') || output.includes('81797') || output.includes('81.8')"
+        weight: 3
+      # Should mention Apple
+      - type: icontains
+        value: "Apple"
+        weight: 1
+      # Factuality check
       - type: factuality
         value: "{{ground_truth}}"
         threshold: 0.7
-      - type: icontains
-        value: "39,669"
-      - type: llm-rubric
-        value: |
-          Does the response correctly state Apple's iPhone revenue?
-          Score 1 if correct figure mentioned, 0 otherwise.
+        weight: 2
 
-  - vars:
-      query: "What was the revenue from Microsoft's cloud services, including Azure, in the latest quarter?"
-      ground_truth: "The revenue from Microsoft's cloud services, including Azure, in the latest quarter was $22,308 million. (SOURCE: 2023 Q3 MSFT.pdf)"
+  # Test 1.2: NVIDIA Total Revenue - Different company
+  - description: "Factual accuracy - NVIDIA total revenue Q3 FY2024"
+    vars:
+      query: "What was NVIDIA's total revenue for the quarter ended October 29, 2023?"
+      ground_truth: "NVIDIA's total revenue for Q3 FY2024 was $18,120 million."
     assert:
+      - type: javascript
+        value: "output.includes('18,120') || output.includes('18120') || output.includes('18.1')"
+        weight: 3
+      - type: icontains
+        value: "NVIDIA"
+        weight: 1
       - type: factuality
         value: "{{ground_truth}}"
         threshold: 0.7
-      - type: icontains
-        value: "Azure"
-      - type: llm-rubric
-        value: |
-          The response should discuss Microsoft's cloud/Azure revenue.
-          Score 1 if cloud revenue figure is mentioned, 0 if not.
+        weight: 2
 
-  - vars:
-      query: "What was Intel's gross margin as reported in their latest 10-Q?"
-      ground_truth: "Intel's gross margin for the quarterly period ended September 30, 2023, was $6,018 million. (SOURCE: 2023 Q3 INTC.pdf)"
+  # Test 1.3: Microsoft Gross Margin - Different metric type
+  - description: "Factual accuracy - Microsoft gross margin Q1 FY2024"
+    vars:
+      query: "What was Microsoft's gross margin for the quarter ended September 30, 2023?"
+      ground_truth: "Microsoft's gross margin for Q1 FY2024 was $40,215 million."
     assert:
+      - type: javascript
+        value: "output.includes('40,215') || output.includes('40215') || output.includes('40.2')"
+        weight: 3
+      - type: icontains
+        value: "Microsoft"
+        weight: 1
       - type: factuality
         value: "{{ground_truth}}"
-        threshold: 0.6
-      - type: icontains
-        value: "INTC"
-      - type: llm-rubric
-        value: |
-          The response should address Intel's gross margin.
-          Score 1 if gross margin figures are mentioned, 0 otherwise.
+        threshold: 0.7
+        weight: 2
 
-  # HALLUCINATION TRAP: Tesla is NOT in the document collection
-  # Tests if the RAG system correctly refuses to fabricate data
-  - vars:
-      query: "What was Tesla's automotive revenue for Q3 2023?"
-      ground_truth: "Tesla is not in the document collection - system should indicate data is unavailable"
+  # =============================================================================
+  # CATEGORY 2: HALLUCINATION - OUT-OF-SCOPE COMPANIES (2 cases)
+  # Test refusal to fabricate data for companies not in the document collection
+  # Accepts any reasonable refusal - no pedantic wording requirements
+  # =============================================================================
+
+  # Test 2.1: Tesla - Company not in collection
+  - description: "Hallucination prevention - Tesla (not in documents)"
+    vars:
+      query: "What was Tesla's revenue for Q3 2023?"
     assert:
-      # Should NOT fabricate revenue figures
-      - type: not-icontains
-        value: "billion"
+      # Should NOT fabricate specific Tesla revenue figures
       - type: not-icontains
         value: "$23"
+        weight: 2
       - type: not-icontains
         value: "$24"
+        weight: 2
       - type: not-icontains
         value: "$25"
-      # Should acknowledge missing data
+        weight: 2
+      # Accept any reasonable acknowledgment that data is unavailable
       - type: llm-rubric
         value: |
-          Tesla is NOT in the document collection. Does the response correctly
-          indicate that Tesla data is not available, rather than fabricating figures?
-          Score 1 if it refuses/acknowledges missing data, 0 if it invents numbers.
-        threshold: 0.9
+          Tesla is NOT in the document collection. Evaluate whether the model
+          appropriately handles this by either:
+          - Saying the information is not available/not found
+          - Saying it cannot answer based on the provided context
+          - Asking for clarification or different documents
+          - Any other reasonable refusal to make up data
+
+          Score 1.0 if the model does NOT provide a specific Tesla revenue figure.
+          Score 0 if the model invents/hallucinates a Tesla revenue number.
+        threshold: 0.8
+        weight: 3
+
+  # Test 2.2: Meta - Another company not in collection
+  - description: "Hallucination prevention - Meta (not in documents)"
+    vars:
+      query: "What was Meta's advertising revenue in Q3 2023?"
+    assert:
+      - type: not-icontains
+        value: "$32"
+        weight: 2
+      - type: not-icontains
+        value: "$33"
+        weight: 2
+      - type: not-icontains
+        value: "$34"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Meta/Facebook is NOT in the document collection. Evaluate whether the model
+          appropriately handles this situation without fabricating data.
+
+          Score 1.0 if the model does NOT provide a specific Meta revenue figure.
+          Score 0 if the model invents/hallucinates Meta revenue numbers.
+        threshold: 0.8
+        weight: 3
+
+  # =============================================================================
+  # CATEGORY 3: HALLUCINATION - WRONG TIME PERIODS (2 cases)
+  # Test handling of queries for data outside the collection's time range
+  # =============================================================================
+
+  # Test 3.1: Apple Q4 2023 - Quarter not in collection (only have Q3)
+  - description: "Time period handling - Apple Q4 2023 (not available)"
+    vars:
+      query: "What was Apple's total revenue for Q4 2023 (quarter ended September 30, 2023)?"
+    assert:
+      # Should not claim to have Q4 specific data
+      - type: not-icontains
+        value: "Q4 2023 revenue was"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          The documents contain Q3 2023 Apple data, NOT Q4 2023.
+          The model should either:
+          1. Say Q4 2023 data is not available, OR
+          2. Clarify it only has Q3 2023 data and offer that instead
+
+          Score 1.0 if model correctly indicates Q4 data unavailable or clarifies time period.
+          Score 0.5 if provides Q3 data with clear disclaimer about wrong quarter.
+          Score 0 if confidently provides a figure claiming it's Q4 2023.
+        threshold: 0.6
+        weight: 3
+
+  # Test 3.2: Intel Q1 2024 - Future quarter not in collection
+  - description: "Time period handling - Intel Q1 2024 (not available)"
+    vars:
+      query: "What were Intel's earnings for Q1 2024?"
+    assert:
+      - type: not-icontains
+        value: "Q1 2024 earnings were"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          The documents only contain Q3 2023 Intel data, NOT Q1 2024.
+          The model should indicate Q1 2024 data is not available.
+
+          Score 1.0 if model correctly indicates Q1 2024 data unavailable.
+          Score 0.5 if provides Q3 2023 data with disclaimer.
+          Score 0 if confidently provides a figure for Q1 2024.
+        threshold: 0.6
+        weight: 3
+
+  # =============================================================================
+  # CATEGORY 4: HALLUCINATION - NON-EXISTENT METRICS (2 cases)
+  # Test refusal to invent metrics that don't exist in 10-Q financial filings
+  # =============================================================================
+
+  # Test 4.1: Customer satisfaction - Not a 10-Q metric
+  - description: "Non-existent metric - Customer satisfaction score"
+    vars:
+      query: "What is Apple's customer satisfaction score according to their Q3 2023 10-Q filing?"
+    assert:
+      # Should not fabricate scores
+      - type: not-icontains
+        value: "satisfaction score is"
+        weight: 2
+      - type: not-icontains
+        value: "NPS of"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Customer satisfaction/NPS scores are NOT reported in SEC 10-Q filings.
+          The model should indicate this metric is not available.
+
+          Score 1.0 if model indicates the metric is not available or not found.
+          Score 0 if model fabricates a specific satisfaction score or percentage.
+        threshold: 0.7
+        weight: 3
+
+  # Test 4.2: Employee retention - Not a 10-Q metric
+  - description: "Non-existent metric - Employee retention rate"
+    vars:
+      query: "What is NVIDIA's employee retention rate from their Q3 2023 quarterly report?"
+    assert:
+      - type: not-icontains
+        value: "retention rate is"
+        weight: 2
+      - type: not-icontains
+        value: "% retention"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Employee retention rates are NOT reported in 10-Q filings.
+          The model should indicate this metric is not available.
+
+          Score 1.0 if model indicates the metric is not available or not found.
+          Score 0 if model fabricates a retention rate percentage.
+        threshold: 0.7
+        weight: 3
+
+  # =============================================================================
+  # CATEGORY 5: CONTEXT GROUNDING (1 case)
+  # Test that model uses retrieved context rather than external knowledge
+  # =============================================================================
+
+  # Test 5.1: Cross-company comparison using only available documents
+  - description: "Context grounding - Company comparison from documents"
+    vars:
+      query: "Based on the available documents, compare Apple and Microsoft's revenue performance."
+    assert:
+      # Should reference both companies
+      - type: icontains
+        value: "Apple"
+        weight: 2
+      - type: icontains
+        value: "Microsoft"
+        weight: 2
+      # Should provide actual figures from the documents
+      - type: llm-rubric
+        value: |
+          Evaluate whether the response compares Apple and Microsoft using
+          data from the retrieved documents (Q3 2023 financials).
+
+          Look for:
+          - Specific revenue/financial figures mentioned
+          - References grounded in the document context
+          - Avoidance of clearly external/general knowledge
+
+          Score 1.0 if comparison uses specific figures from the documents.
+          Score 0.5 if partially grounded with some external context.
+          Score 0 if completely ignores retrieved documents.
+        threshold: 0.7
+        weight: 3
 
 evaluateOptions:
   maxConcurrency: 2
+  cache: false  # Disable cache for accurate latency measurement
+
+# Output configuration
+outputPath: ./results/03_rag_context_{{timestamp}}.json

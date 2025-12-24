@@ -1,0 +1,6 @@
+Answer this question using the context provided.
+
+Context:
+{{context}}
+
+Question: {{query}}

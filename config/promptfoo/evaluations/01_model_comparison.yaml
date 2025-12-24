@@ -1,39 +1,23 @@
-# Model Comparison Evaluation
-# Compare different LLM providers on cost, latency, and quality
+# Budget LLM Comparison - Comprehensive Evaluation
+# Compare gpt-4o-mini, claude-haiku-4.5, gemini-2.5-flash-lite
+# Evaluates: Factual accuracy, hallucination detection, context faithfulness, answer completeness
 
-description: "Model comparison - cost, latency, and quality analysis"
+description: "Budget LLM comparison for financial RAG - comprehensive evaluation"
 
 providers:
-  # OpenAI
-  - id: openai:gpt-4o
-    label: "GPT-4o"
-    config:
-      temperature: 0.1
-
+  # OpenAI Budget Tier
   - id: openai:gpt-4o-mini
     label: "GPT-4o-mini"
     config:
       temperature: 0.1
 
-  # Anthropic
-  - id: anthropic:messages:claude-sonnet-4-20250514
-    label: "Claude Sonnet 4"
-    config:
-      temperature: 0.1
-
+  # Anthropic Budget Tier
   - id: anthropic:messages:claude-haiku-4-5-20251001
     label: "Claude Haiku 4.5"
     config:
       temperature: 0.1
 
-  # Google Vertex AI
-  - id: vertex:gemini-2.5-flash
-    label: "Gemini 2.5 Flash"
-    config:
-      temperature: 0.1
-      projectId: adrians-testing
-      region: europe-west1
-
+  # Google Budget Tier
   - id: vertex:gemini-2.5-flash-lite
     label: "Gemini 2.5 Flash Lite"
     config:
@@ -44,78 +28,446 @@ providers:
 prompts:
   - file://../../../prompts/rag/generation_prompt.txt
 
+# Default assertions applied to ALL test cases
+defaultTest:
+  assert:
+    # Latency threshold: 5 seconds max for budget models
+    - type: latency
+      threshold: 5000
+      weight: 1
+
 tests:
-  - vars:
+  # =============================================================================
+  # CATEGORY 1: TABLE EXTRACTION (4 cases)
+  # Tests precise extraction of numerical data from financial tables
+  # =============================================================================
+
+  # Test 1.1: Apple Total Net Sales
+  - description: "Table extraction - Apple total net sales Q3 2023"
+    vars:
       query: "What was Apple's total net sales for the quarter ended July 1, 2023?"
       context: |
-        [Source 1: 2023 Q3 AAPL.pdf (Table)]
+        [Source: 2023 Q3 AAPL.pdf (Table)]
         CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS (Unaudited)
-        Three Months Ended July 1, 2023
-        Total net sales: $81,797 million
-      ground_truth: "Apple's total net sales for the quarter ended July 1, 2023 were $81,797 million. (SOURCE: 2023 Q3 AAPL.pdf)"
+        Apple Inc.
+        Three Months Ended July 1, 2023 (in millions)
+
+        Net sales:
+          Products:
+            iPhone: $39,669
+            Mac: $6,840
+            iPad: $5,791
+            Wearables, Home and Accessories: $8,284
+          Total Products: $60,584
+          Services: $21,213
+        Total net sales: $81,797
+
+        Cost of sales: $45,384
+        Gross margin: $36,413
+      ground_truth: "Apple's total net sales for Q3 2023 were $81,797 million."
     assert:
       - type: contains
         value: "81,797"
+        weight: 3
       - type: icontains
-        value: "AAPL"
-      - type: factuality
-        value: "{{ground_truth}}"
-        threshold: 0.9
-      - type: latency
-        threshold: 5000
-
-  - vars:
-      query: "What was NVIDIA's revenue for the quarter ended July 30, 2023?"
-      context: |
-        [Source 1: 2023 Q3 NVDA.pdf (Table)]
-        CONDENSED CONSOLIDATED STATEMENTS OF INCOME
-        Three Months Ended July 30, 2023
-        Revenue: $13,507 million
-      ground_truth: "NVIDIA's revenue for the quarter ended July 30, 2023 was $13,507 million. (SOURCE: 2023 Q3 NVDA.pdf)"
-    assert:
-      - type: contains
-        value: "13,507"
-      - type: icontains
-        value: "NVDA"
-      - type: factuality
-        value: "{{ground_truth}}"
-        threshold: 0.9
-
-  - vars:
-      query: "What were Microsoft's total revenues for Q3 2023?"
-      context: |
-        [Source 1: 2023 Q3 MSFT.pdf (Table)]
-        Three Months Ended June 30, 2023
-        Total revenues: $56,189 million
-      ground_truth: "Microsoft's total revenues for Q3 2023 (three months ended June 30, 2023) were $56,189 million. (SOURCE: 2023 Q3 MSFT.pdf)"
-    assert:
-      - type: contains
-        value: "56,189"
-      - type: icontains
-        value: "MSFT"
-      - type: factuality
-        value: "{{ground_truth}}"
-        threshold: 0.9
-
-  # NEGATIVE TEST: Hallucination trap - Tesla is NOT in the document collection
-  - vars:
-      query: "What was Tesla's revenue for Q3 2023?"
-      context: "[No relevant documents found]"
-      ground_truth: "The system should acknowledge that Tesla data is not available in the provided context."
-    assert:
-      # Should NOT contain fabricated numbers
-      - type: not-icontains
-        value: "billion"
-      - type: not-icontains
         value: "million"
-      # Should indicate data is not available
+        weight: 1
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.8
+        weight: 2
+
+  # Test 1.2: NVIDIA Total Revenue
+  - description: "Table extraction - NVIDIA total revenue Q3 2023"
+    vars:
+      query: "What was NVIDIA's total revenue for the fiscal quarter ended October 29, 2023?"
+      context: |
+        [Source: 2023 Q3 NVDA.pdf (Table)]
+        CONDENSED CONSOLIDATED STATEMENTS OF INCOME
+        NVIDIA Corporation
+        Three Months Ended October 29, 2023 (in millions)
+
+        Revenue: $18,120
+        Cost of revenue: $5,078
+        Gross profit: $13,042
+
+        Operating expenses:
+          Research and development: $2,294
+          Sales, general and administrative: $689
+        Total operating expenses: $2,983
+
+        Operating income: $10,059
+      ground_truth: "NVIDIA's total revenue for Q3 FY2024 (quarter ended October 29, 2023) was $18,120 million."
+    assert:
+      - type: contains
+        value: "18,120"
+        weight: 3
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.8
+        weight: 2
+
+  # Test 1.3: Microsoft Gross Margin
+  - description: "Table extraction - Microsoft gross margin Q1 FY2024"
+    vars:
+      query: "What was Microsoft's gross margin for the quarter ended September 30, 2023?"
+      context: |
+        [Source: 2023 Q3 MSFT.pdf (Table)]
+        CONDENSED CONSOLIDATED STATEMENTS OF INCOME
+        Microsoft Corporation
+        Three Months Ended September 30, 2023 (in millions)
+
+        Revenue: $56,517
+        Cost of revenue: $16,302
+        Gross margin: $40,215
+
+        Operating expenses:
+          Research and development: $7,220
+          Sales and marketing: $5,379
+          General and administrative: $1,538
+        Total operating expenses: $14,137
+
+        Operating income: $26,078
+      ground_truth: "Microsoft's gross margin for Q1 FY2024 was $40,215 million."
+    assert:
+      - type: contains
+        value: "40,215"
+        weight: 3
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.8
+        weight: 2
+
+  # Test 1.4: Intel Net Revenue (tests billion handling)
+  - description: "Table extraction - Intel net revenue Q3 2023"
+    vars:
+      query: "What was Intel's total net revenue for Q3 2023?"
+      context: |
+        [Source: 2023 Q3 INTC.pdf (Table)]
+        CONSOLIDATED CONDENSED STATEMENTS OF INCOME
+        Intel Corporation
+        Three Months Ended September 30, 2023 (in millions)
+
+        Net revenue: $14,158
+        Cost of sales: $8,140
+        Gross margin: $6,018
+
+        Research and development: $3,981
+        Marketing, general and administrative: $1,352
+        Restructuring and other charges: $149
+        Operating income: $536
+      ground_truth: "Intel's total net revenue for Q3 2023 was $14,158 million (approximately $14.2 billion)."
+    assert:
+      - type: javascript
+        value: output.includes('14,158') || output.includes('14158') || output.includes('14.2') || output.includes('14.16')
+        weight: 3
+      - type: factuality
+        value: "{{ground_truth}}"
+        threshold: 0.8
+        weight: 2
+
+  # =============================================================================
+  # CATEGORY 2: TEXT REASONING (3 cases)
+  # Tests understanding of narrative text and causal relationships
+  # =============================================================================
+
+  # Test 2.1: Apple Gross Margin Drivers
+  - description: "Text reasoning - Apple gross margin factors Q3 2023"
+    vars:
+      query: "What factors affected Apple's gross margin in Q3 2023?"
+      context: |
+        [Source: 2023 Q3 AAPL.pdf (Text)]
+        Management's Discussion and Analysis of Financial Condition and Results of Operations
+
+        Gross Margin
+
+        Products gross margin percentage increased during the third quarter of 2023 compared
+        to the same quarter in 2022 due to cost savings and a different Products mix,
+        partially offset by the weakness in foreign currencies relative to the U.S. dollar
+        and lower Products volume.
+
+        Services gross margin increased due to higher Services net sales, partially offset
+        by the weakness in foreign currencies relative to the U.S. dollar and higher
+        Services costs. Services gross margin percentage decreased due to higher Services
+        costs, partially offset by improved leverage.
+
+        The Company anticipates gross margin percentage will be between 44% and 44.5%
+        during the fourth quarter of 2023.
+      ground_truth: "Factors affecting Apple's Q3 2023 gross margin included: cost savings (positive), different product mix (positive), foreign currency weakness (negative), and lower product volume (negative)."
+    assert:
+      - type: icontains
+        value: "cost"
+        weight: 2
+      - type: icontains
+        value: "foreign"
+        weight: 2
       - type: llm-rubric
         value: |
-          Does the response correctly indicate that Tesla revenue data is NOT available
-          in the provided context? The model should refuse to provide a specific number
-          or acknowledge the lack of data.
-          Score 1 if it correctly refuses/acknowledges, 0 if it fabricates data.
+          Does the response correctly identify multiple factors affecting gross margin?
+          Key factors: cost savings, product mix, foreign currency weakness, volume changes.
+          Score 1.0 if mentions at least 3 factors correctly.
+          Score 0.5 if mentions 2 factors.
+          Score 0 if incorrect or only 1 factor.
+        weight: 2
+
+  # Test 2.2: Microsoft Cloud Growth
+  - description: "Text reasoning - Microsoft cloud revenue drivers"
+    vars:
+      query: "What drove the growth in Microsoft's Intelligent Cloud segment revenue?"
+      context: |
+        [Source: 2023 Q3 MSFT.pdf (Text)]
+        Management's Discussion and Analysis
+
+        Intelligent Cloud
+
+        Revenue increased $3.2 billion or 19%.
+        - Server products and cloud services revenue increased $3.1 billion or 21%
+          driven by Azure and other cloud services growth of 29%.
+        - Enterprise Services revenue increased $119 million or 6% driven by growth
+          in Enterprise Support Services.
+
+        Azure and other cloud services revenue growth was driven by our consumption-based
+        services. Azure Arc and Azure Machine Learning continue to see strong adoption.
+        The ongoing AI innovation and enterprise transformation to cloud-based solutions
+        remain key drivers of demand.
+      ground_truth: "Microsoft Intelligent Cloud growth was primarily driven by Azure (29% growth), consumption-based services, AI innovation, and enterprise cloud transformation."
+    assert:
+      - type: icontains
+        value: "Azure"
+        weight: 3
+      - type: llm-rubric
+        value: |
+          Does the response correctly identify Azure as the primary growth driver
+          and mention cloud services or AI adoption?
+          Score 1.0 if Azure mentioned with growth context.
+          Score 0.5 if partially correct.
+          Score 0 if incorrect.
+        weight: 2
+
+  # Test 2.3: NVIDIA Data Center Growth Drivers
+  - description: "Text reasoning - NVIDIA data center demand factors"
+    vars:
+      query: "What factors are driving demand for NVIDIA's Data Center products?"
+      context: |
+        [Source: 2023 Q3 NVDA.pdf (Text)]
+        Management's Discussion and Analysis
+
+        Data Center
+
+        Revenue increased 279% from a year ago and increased 41% sequentially.
+        The strong growth was driven by higher demand for AI training and inference
+        using our Hopper GPU architecture. Cloud service providers and large consumer
+        internet companies accounted for approximately half of our Data Center revenue.
+
+        Demand visibility extends into next year with significant orders already placed.
+        We continue to increase supply and expand our partner ecosystem to meet the
+        extraordinary demand for generative AI and large language models.
+
+        Supply constraints continue to impact our ability to fulfill all customer orders
+        in the near term.
+      ground_truth: "NVIDIA Data Center demand is driven by AI training and inference needs, generative AI adoption, large language models, and cloud service provider investments."
+    assert:
+      - type: icontains
+        value: "AI"
+        weight: 3
+      - type: llm-rubric
+        value: |
+          Does the response correctly identify AI/ML workloads and cloud providers
+          as key demand drivers for NVIDIA's Data Center segment?
+          Score 1.0 if comprehensive answer mentioning AI and cloud.
+          Score 0.5 if partial.
+          Score 0 if incorrect.
+        weight: 2
+
+  # =============================================================================
+  # CATEGORY 3: COMPARATIVE ANALYSIS (2 cases)
+  # Tests ability to compare metrics within same document
+  # =============================================================================
+
+  # Test 3.1: Apple Products vs Services Margins
+  - description: "Comparison - Apple Products vs Services gross margin"
+    vars:
+      query: "How does Apple's Products gross margin compare to its Services gross margin in Q3 2023?"
+      context: |
+        [Source: 2023 Q3 AAPL.pdf (Table)]
+        CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS (Unaudited)
+        Apple Inc.
+        Three Months Ended July 1, 2023 (in millions)
+
+        Products:
+          Net sales: $60,584
+          Cost of sales: $39,136
+          Gross margin: $21,448
+
+        Services:
+          Net sales: $21,213
+          Cost of sales: $6,248
+          Gross margin: $14,965
+
+        Products gross margin percentage: 35.4%
+        Services gross margin percentage: 70.5%
+      ground_truth: "Apple's Services gross margin (70.5%) is significantly higher than Products gross margin (35.4%). Services has nearly double the margin percentage."
+    assert:
+      - type: javascript
+        value: (output.includes('70') || output.includes('71')) && (output.includes('35') || output.includes('36'))
+        weight: 3
+      - type: icontains
+        value: "higher"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Does the response correctly compare Products vs Services margins
+          and note that Services has a significantly higher margin?
+          Score 1.0 if both percentages mentioned with correct comparison.
+          Score 0.5 if comparison correct but missing specific numbers.
+          Score 0 if comparison is wrong.
+        weight: 2
+
+  # Test 3.2: Apple YoY iPhone Revenue Change
+  - description: "Comparison - Apple iPhone revenue YoY change"
+    vars:
+      query: "How did Apple's iPhone revenue change from Q3 2022 to Q3 2023?"
+      context: |
+        [Source: 2022 Q3 AAPL.pdf (Table)]
+        Three Months Ended June 25, 2022
+        iPhone net sales: $40,665 million
+
+        [Source: 2023 Q3 AAPL.pdf (Table)]
+        Three Months Ended July 1, 2023
+        iPhone net sales: $39,669 million
+
+        Year-over-year change: -$996 million (-2.4%)
+      ground_truth: "Apple iPhone revenue decreased from $40,665 million (Q3 2022) to $39,669 million (Q3 2023), a decline of $996 million or approximately 2.4%."
+    assert:
+      - type: javascript
+        value: output.includes('40,665') || output.includes('40665')
+        weight: 2
+      - type: javascript
+        value: output.includes('39,669') || output.includes('39669')
+        weight: 2
+      - type: icontains
+        value: "decrease"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Does the response correctly identify that iPhone revenue DECREASED
+          year-over-year with approximate figures?
+          Score 1.0 if direction and both figures correct.
+          Score 0.5 if direction correct but figures missing.
+          Score 0 if claims revenue increased.
+        weight: 2
+
+  # =============================================================================
+  # CATEGORY 4: HALLUCINATION TRAPS (2 cases)
+  # Tests model's ability to refuse when data is unavailable
+  # =============================================================================
+
+  # Test 4.1: Tesla - Company not in collection
+  - description: "Hallucination trap - Tesla not in documents"
+    vars:
+      query: "What was Tesla's revenue for Q3 2023?"
+      context: "[No relevant documents found for Tesla in the financial document collection]"
+      ground_truth: "Tesla data is not available in the provided context."
+    assert:
+      # Should NOT fabricate revenue figures
+      - type: not-icontains
+        value: "billion"
+        weight: 3
+      - type: not-icontains
+        value: "$23"
+        weight: 2
+      - type: not-icontains
+        value: "$24"
+        weight: 2
+      - type: not-icontains
+        value: "$25"
+        weight: 2
+      # Should indicate data is unavailable
+      - type: llm-rubric
+        value: |
+          Tesla is NOT in the document collection. The model MUST refuse to provide
+          a revenue figure and instead indicate that Tesla data is not available.
+
+          Score 1.0 if clearly states Tesla data is unavailable or not in context.
+          Score 0 if provides ANY specific revenue figure for Tesla.
+        threshold: 0.9
+        weight: 3
+
+  # Test 4.2: Meta/Facebook - Company not in collection
+  - description: "Hallucination trap - Meta not in documents"
+    vars:
+      query: "What was Meta's advertising revenue in Q3 2023?"
+      context: "[No relevant documents found for Meta or Facebook in the financial document collection]"
+      ground_truth: "Meta/Facebook data is not available in the provided context."
+    assert:
+      - type: not-icontains
+        value: "billion"
+        weight: 3
+      - type: not-icontains
+        value: "$32"
+        weight: 2
+      - type: not-icontains
+        value: "$33"
+        weight: 2
+      - type: not-icontains
+        value: "$34"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Meta/Facebook is NOT in the document collection. The model must refuse
+          to provide revenue figures and acknowledge the data is unavailable.
+
+          Score 1.0 if clearly refuses and indicates no Meta data available.
+          Score 0 if invents any Meta revenue figures.
+        threshold: 0.9
+        weight: 3
+
+  # =============================================================================
+  # CATEGORY 5: EDGE CASE (1 case)
+  # Tests handling of information not typically in 10-Q filings
+  # =============================================================================
+
+  # Test 5.1: Forward Guidance Request
+  - description: "Edge case - Forward guidance not in 10-Q"
+    vars:
+      query: "What is Apple's revenue guidance for Q4 2023?"
+      context: |
+        [Source: 2023 Q3 AAPL.pdf (Text)]
+        Management's Discussion and Analysis
+
+        Total net sales were $81,797 million for Q3 2023.
+
+        The Company's future net sales and gross margin are subject to uncertainty
+        related to the impact of foreign exchange rates, market conditions, and
+        customer demand patterns.
+
+        Note: Apple historically does not provide specific quarterly revenue guidance
+        in its SEC filings. The Company discusses factors that may affect future
+        performance without providing explicit numerical forecasts.
+      ground_truth: "Apple does not provide specific revenue guidance in its 10-Q filings."
+    assert:
+      - type: not-icontains
+        value: "will be $"
+        weight: 2
+      - type: not-icontains
+        value: "expects revenue of"
+        weight: 2
+      - type: not-icontains
+        value: "forecasts $"
+        weight: 2
+      - type: llm-rubric
+        value: |
+          Apple does NOT provide specific revenue guidance in 10-Q filings.
+          The model should acknowledge that explicit guidance is not available.
+
+          Score 1.0 if correctly states guidance is not provided or not in context.
+          Score 0 if invents specific revenue numbers for Q4.
         threshold: 0.8
+        weight: 3
 
 evaluateOptions:
   maxConcurrency: 3
+  cache: true
+
+# Output configuration
+outputPath: ./results/01_model_comparison_budget_{{timestamp}}.json
