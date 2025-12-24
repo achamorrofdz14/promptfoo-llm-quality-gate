@@ -100,9 +100,7 @@ class BaseProvider(ABC):
             chunk_type = doc.get("metadata", {}).get("chunk_type", "Unknown")
             content = doc.get("content", "")
 
-            context_parts.append(
-                f"[Source {i}: {source} ({chunk_type})]\n{content}"
-            )
+            context_parts.append(f"[Source {i}: {source} ({chunk_type})]\n{content}")
 
         return "\n\n---\n\n".join(context_parts)
 
@@ -129,7 +127,7 @@ class BaseProvider(ABC):
 
         # Return default template if file not found
         return """Answer the following question based on the provided context.
-If the information is not in the context, say "I don't have enough information to answer this question."
+If the information is not in the context, say "I don't have enough information."
 
 Context:
 {{context}}

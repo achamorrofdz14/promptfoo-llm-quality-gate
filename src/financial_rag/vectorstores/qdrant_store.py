@@ -149,7 +149,7 @@ class QdrantStore(BaseVectorStore):
         # Build query filter if provided
         query_filter = None
         if filter_metadata:
-            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            from qdrant_client.models import FieldCondition, Filter, MatchValue
 
             conditions = [
                 FieldCondition(key=key, match=MatchValue(value=value))

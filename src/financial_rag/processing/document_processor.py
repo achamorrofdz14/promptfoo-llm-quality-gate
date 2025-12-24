@@ -55,7 +55,9 @@ def get_cache_key(file_path: Path, chunk_size: int, chunk_overlap: int) -> str:
         Hash string for cache key.
     """
     file_stat = file_path.stat()
-    key_data = f"{file_path.name}:{file_stat.st_size}:{file_stat.st_mtime}:{chunk_size}:{chunk_overlap}"
+    key_data = (
+        f"{file_path.name}:{file_stat.st_size}:{file_stat.st_mtime}:{chunk_size}:{chunk_overlap}"
+    )
     return hashlib.md5(key_data.encode()).hexdigest()
 
 
@@ -148,8 +150,7 @@ class DocumentProcessor:
         cache_path = self._get_cache_path(cache_key)
 
         cache_data = [
-            {"page_content": doc.page_content, "metadata": doc.metadata}
-            for doc in documents
+            {"page_content": doc.page_content, "metadata": doc.metadata} for doc in documents
         ]
 
         with open(cache_path, "w") as f:
@@ -208,9 +209,7 @@ class DocumentProcessor:
             else:
                 enriched_metadata["chunk_type"] = "Text"
 
-            processed_docs.append(
-                Document(page_content=content, metadata=enriched_metadata)
-            )
+            processed_docs.append(Document(page_content=content, metadata=enriched_metadata))
 
         # Save to cache
         if self._use_cache:
@@ -242,9 +241,7 @@ class DocumentProcessor:
 
         # Check for numerical data patterns common in financial tables
         number_pattern = r"[\$€£]?\s*[\d,]+\.?\d*\s*[%]?"
-        number_lines = sum(
-            1 for line in lines if len(re.findall(number_pattern, line)) >= 2
-        )
+        number_lines = sum(1 for line in lines if len(re.findall(number_pattern, line)) >= 2)
 
         # Consider table if significant portion has structure
         total_lines = len(lines)
@@ -263,9 +260,7 @@ class DocumentProcessor:
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task(
-                "Processing documents...", total=len(self.selected_documents)
-            )
+            task = progress.add_task("Processing documents...", total=len(self.selected_documents))
 
             for doc_name in self.selected_documents:
                 file_path = self._documents_dir / doc_name

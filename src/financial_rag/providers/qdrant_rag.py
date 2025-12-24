@@ -90,9 +90,7 @@ class QdrantRAGProvider(BaseProvider):
 
         # Load and format prompt template
         template = self._load_prompt_template("rag/generation_prompt.txt")
-        full_prompt = template.replace("{{context}}", formatted_context).replace(
-            "{{query}}", query
-        )
+        full_prompt = template.replace("{{context}}", formatted_context).replace("{{query}}", query)
 
         # Generate response
         llm = self._get_llm()

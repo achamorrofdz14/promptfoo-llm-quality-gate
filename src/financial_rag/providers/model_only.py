@@ -21,6 +21,8 @@ class ModelOnlyProvider(BaseProvider):
     - Comparing model behavior with vs without context
     """
 
+    NO_RETRIEVAL_MESSAGE = "[No document retrieval - testing prompt engineering only]"
+
     def __init__(self, config: dict | None = None):
         """Initialize model-only provider.
 
@@ -67,16 +69,11 @@ class ModelOnlyProvider(BaseProvider):
         query = context.get("vars", {}).get("query", prompt)
 
         # Use mock context if provided, otherwise indicate no retrieval
-        mock_context = self._config.get(
-            "mock_context",
-            "[No document retrieval - testing prompt engineering only]"
-        )
+        mock_context = self._config.get("mock_context", self.NO_RETRIEVAL_MESSAGE)
 
         # Load and format prompt template
         template = self._load_prompt_template("redteam/strict_analyst.txt")
-        full_prompt = template.replace("{{context}}", mock_context).replace(
-            "{{query}}", query
-        )
+        full_prompt = template.replace("{{context}}", mock_context).replace("{{query}}", query)
 
         # Generate response
         llm = self._get_llm()
@@ -92,7 +89,7 @@ class ModelOnlyProvider(BaseProvider):
             "model": self._model_name,
             "llm_provider": self._config.get("llm_provider", "openai"),
             "mode": "model_only",
-            "has_context": mock_context != "[No document retrieval - testing prompt engineering only]",
+            "has_context": mock_context != self.NO_RETRIEVAL_MESSAGE,
         }
 
         return create_provider_response(

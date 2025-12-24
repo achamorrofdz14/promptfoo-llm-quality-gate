@@ -89,8 +89,7 @@ def create_llm(
 
     else:
         raise ValueError(
-            f"Unknown LLM provider: {provider}. "
-            f"Supported providers: openai, anthropic, google"
+            f"Unknown LLM provider: {provider}. Supported providers: openai, anthropic, google"
         )
 
     return LLMInstance(llm=llm, model_name=model_name, provider=provider)
