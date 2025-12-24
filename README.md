@@ -8,7 +8,7 @@
 [![CI](https://github.com/achamorrofdz14/promptfoo-llm-quality-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/achamorrofdz14/promptfoo-llm-quality-gate/actions/workflows/ci.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-> **Read the full analysis**: [5 Experiments Later: Is Promptfoo the LLM Quality Gate MLOps Has Been Missing?](BLOG_URL)
+> **Read the full analysis**: [5 Experiments Later: Is Promptfoo the LLM Quality Gate MLOps Has Been Missing?](https://www.linkedin.com/pulse/5-experiments-later-promptfoo-llm-quality-gate-mlops-adri%C3%A1n-7t1je/?trackingId=dh3Vz6HxSBe%2BByuDEoqFAw%3D%3D)
 
 A comprehensive LLM evaluation framework for financial RAG systems using [Promptfoo](https://www.promptfoo.dev/). This project demonstrates systematic evaluation across 5 dimensions using real 10-Q SEC filings from AAPL, MSFT, NVDA, and INTC.
 
